@@ -38,10 +38,10 @@ def get_google_sheet():
     """Conecta con Google Sheets usando las credenciales de Streamlit Secrets"""
     try:
         # Obtener credenciales desde secrets
-   credentials_dict = dict(st.secrets["gcp_service_account"])
-   credentials = service_account.Credentials.from_service_account_info(
-       credentials_dict,
-       scopes=scope
+        credentials_dict = dict(st.secrets["gcp_service_account"])
+        credentials = service_account.Credentials.from_service_account_info(
+        credentials_dict,
+        scopes=scope
    )
         
         # Autorizar y obtener el cliente
