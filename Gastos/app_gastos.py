@@ -1,10 +1,10 @@
 import streamlit as st
 import pandas as pd
-import openpyxl
 from datetime import datetime, date
 import plotly.express as px
 import plotly.graph_objects as go
-from pathlib import Path
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 import json
 
 # Configuración de la página
@@ -22,389 +22,300 @@ st.markdown("""
         font-size: 3rem;
         font-weight: bold;
         color: #1f77b4;
-        text-align: center;
-        margin-bottom: 2rem;
     }
     .metric-card {
         background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin: 0.5rem 0;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 2rem;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Archivo de datos
-DATA_FILE = "gastos_data.json"
-
-# Categorías predefinidas
-CATEGORIAS_FIJAS = [
-    "Alquiler", "Expensas", "Luz", "Gas", "Agua", 
-    "Personal (Internet + Línea)", "Terapia", "Pilates",
-    "Espacio El Peregrino", "La Coopi cloacas servicio",
-    "La Coopi cloacas capitalización"
-]
-
-TARJETAS = ["BBVA", "Naranja", "Macro", "Santander", "Cencosud"]
-
-CATEGORIAS_VARIABLES = [
-    "Supermercado", "Verdulería", "Farmacia", "Transporte",
-    "Restaurante", "Entretenimiento", "Ropa", "Otros"
-]
-
-# Funciones de manejo de datos
-def cargar_datos():
-    """Carga los datos desde el archivo JSON"""
-    if Path(DATA_FILE).exists():
-        with open(DATA_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {"gastos": []}
-
-def guardar_datos(datos):
-    """Guarda los datos en el archivo JSON"""
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(datos, f, ensure_ascii=False, indent=2)
-
-def agregar_gasto(datos_nuevos):
-    """Agrega un nuevo gasto"""
-    datos = cargar_datos()
-    datos["gastos"].append(datos_nuevos)
-    guardar_datos(datos)
-    return True
-
-def obtener_gastos_df():
-    """Obtiene los gastos como DataFrame de pandas"""
-    datos = cargar_datos()
-    if not datos["gastos"]:
-        return pd.DataFrame()
-    
-    df = pd.DataFrame(datos["gastos"])
-    # Convertir fecha a datetime
-    df['fecha'] = pd.to_datetime(df['fecha'])
-    return df
-
-def exportar_a_excel(df, nombre_archivo):
-    """Exporta los datos a Excel con formato similar al original"""
-    if df.empty:
+# Función para conectar con Google Sheets
+@st.cache_resource
+def get_google_sheet():
+    """Conecta con Google Sheets usando las credenciales de Streamlit Secrets"""
+    try:
+        # Configurar credenciales desde Streamlit Secrets
+        scope = [
+            'https://spreadsheets.google.com/feeds',
+            'https://www.googleapis.com/auth/drive'
+        ]
+        
+        # Obtener credenciales desde secrets
+        credentials_dict = dict(st.secrets["gcp_service_account"])
+        credentials = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+        
+        # Autorizar y obtener el cliente
+        client = gspread.authorize(credentials)
+        
+        # Abrir la hoja de cálculo
+        spreadsheet_id = st.secrets["google_sheets"]["spreadsheet_id"]
+        sheet = client.open_by_key(spreadsheet_id).sheet1
+        
+        return sheet
+    except Exception as e:
+        st.error(f"Error al conectar con Google Sheets: {str(e)}")
         return None
-    
-    # Crear workbook
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    
-    # Agrupar por mes
-    df['mes'] = df['fecha'].dt.to_period('M')
-    meses = df['mes'].unique()
-    
-    for idx, mes in enumerate(meses):
-        if idx > 0:
-            ws = wb.create_sheet(title=str(mes))
-        else:
-            ws.title = str(mes)
-        
-        # Datos del mes
-        df_mes = df[df['mes'] == mes]
-        
-        # Encabezados
-        ws['A1'] = 'GASTOS MENSUALES'
-        ws['A2'] = 'Fecha'
-        ws['B2'] = 'Concepto'
-        ws['C2'] = 'Categoría'
-        ws['D2'] = 'Importe'
-        ws['E2'] = 'Método de Pago'
-        ws['F2'] = 'Notas'
-        
-        # Datos
-        for i, (_, row) in enumerate(df_mes.iterrows(), start=3):
-            ws[f'A{i}'] = row['fecha'].strftime('%d/%m/%Y')
-            ws[f'B{i}'] = row['concepto']
-            ws[f'C{i}'] = row['categoria']
-            ws[f'D{i}'] = row['importe']
-            ws[f'E{i}'] = row.get('metodo_pago', '')
-            ws[f'F{i}'] = row.get('notas', '')
-    
-    wb.save(nombre_archivo)
-    return nombre_archivo
 
-# Título principal
-st.markdown('<h1 class="main-header">💰 Registro de Gastos Mensuales</h1>', unsafe_allow_html=True)
+# Función para cargar datos desde Google Sheets
+def load_data_from_sheets(sheet):
+    """Carga todos los datos desde Google Sheets"""
+    try:
+        data = sheet.get_all_records()
+        if data:
+            df = pd.DataFrame(data)
+            # Convertir fecha a datetime
+            if 'Fecha' in df.columns:
+                df['Fecha'] = pd.to_datetime(df['Fecha'], format='%d/%m/%Y', errors='coerce')
+            return df
+        else:
+            return pd.DataFrame(columns=['Fecha', 'Categoría', 'Descripción', 'Monto', 'Método de Pago'])
+    except Exception as e:
+        st.error(f"Error al cargar datos: {str(e)}")
+        return pd.DataFrame(columns=['Fecha', 'Categoría', 'Descripción', 'Monto', 'Método de Pago'])
 
-# Sidebar para navegación
-with st.sidebar:
-    st.image("https://em-content.zobj.net/thumbs/240/apple/354/money-bag_1f4b0.png", width=100)
-    st.title("📋 Menú")
-    
-    opcion = st.radio(
-        "Selecciona una opción:",
-        ["📝 Registrar Gasto", "📊 Ver Gastos", "📈 Análisis", "⚙️ Configuración"]
-    )
-    
-    st.markdown("---")
-    st.markdown("### 📅 Fecha de hoy")
-    st.info(datetime.now().strftime("%d/%m/%Y"))
+# Función para guardar un nuevo gasto
+def save_expense_to_sheets(sheet, fecha, categoria, descripcion, monto, metodo_pago):
+    """Guarda un nuevo gasto en Google Sheets"""
+    try:
+        # Formatear fecha
+        fecha_str = fecha.strftime('%d/%m/%Y')
+        
+        # Agregar nueva fila
+        row = [fecha_str, categoria, descripcion, float(monto), metodo_pago]
+        sheet.append_row(row)
+        
+        return True
+    except Exception as e:
+        st.error(f"Error al guardar gasto: {str(e)}")
+        return False
 
-# Contenido principal según la opción seleccionada
-if opcion == "📝 Registrar Gasto":
-    st.header("📝 Registrar un Nuevo Gasto")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        tipo_gasto = st.selectbox(
-            "Tipo de gasto:",
-            ["💳 Gasto con Tarjeta", "💵 Gasto Fijo", "🛒 Gasto Variable"]
-        )
-        
-        fecha = st.date_input("Fecha del gasto:", value=date.today())
-        
-        if tipo_gasto == "💵 Gasto Fijo":
-            concepto = st.selectbox("Concepto:", CATEGORIAS_FIJAS)
-        else:
-            concepto = st.text_input("Concepto:", placeholder="Ej: Compra supermercado")
-        
-        importe = st.number_input("Importe ($):", min_value=0.0, step=100.0, format="%.2f")
-    
-    with col2:
-        if tipo_gasto == "💳 Gasto con Tarjeta":
-            tarjeta = st.selectbox("Tarjeta:", TARJETAS)
-            cuotas = st.number_input("Cuotas:", min_value=1, max_value=48, value=1)
-            metodo_pago = tarjeta
-        else:
-            metodo_pago = st.selectbox("Método de pago:", 
-                ["Efectivo", "Transferencia", "Débito", "Otro"])
-            cuotas = 1
-        
-        if tipo_gasto == "🛒 Gasto Variable":
-            categoria = st.selectbox("Categoría:", CATEGORIAS_VARIABLES)
-        else:
-            categoria = concepto
-        
-        notas = st.text_area("Notas adicionales:", placeholder="Información extra...")
-    
+# Función para inicializar la hoja con encabezados si está vacía
+def initialize_sheet(sheet):
+    """Inicializa la hoja con encabezados si está vacía"""
+    try:
+        if len(sheet.get_all_values()) == 0:
+            headers = ['Fecha', 'Categoría', 'Descripción', 'Monto', 'Método de Pago']
+            sheet.append_row(headers)
+    except Exception as e:
+        st.error(f"Error al inicializar hoja: {str(e)}")
+
+# APLICACIÓN PRINCIPAL
+def main():
+    # Título principal
+    st.markdown('<h1 class="main-header">💰 Registro de Gastos</h1>', unsafe_allow_html=True)
     st.markdown("---")
     
-    if st.button("💾 Guardar Gasto", use_container_width=True, type="primary"):
-        if concepto and importe > 0:
-            nuevo_gasto = {
-                "fecha": fecha.strftime("%Y-%m-%d"),
-                "concepto": concepto,
-                "categoria": categoria,
-                "importe": importe,
-                "tipo_gasto": tipo_gasto,
-                "metodo_pago": metodo_pago,
-                "cuotas": cuotas if tipo_gasto == "💳 Gasto con Tarjeta" else 1,
-                "notas": notas,
-                "timestamp": datetime.now().isoformat()
-            }
+    # Conectar con Google Sheets
+    sheet = get_google_sheet()
+    
+    if sheet is None:
+        st.error("⚠️ No se pudo conectar con Google Sheets. Verifica la configuración de Secrets.")
+        st.info("""
+        **Pasos para configurar:**
+        1. Ve a Settings de tu app en Streamlit Cloud
+        2. Agrega tus credenciales en la sección Secrets
+        3. Reinicia la app
+        """)
+        return
+    
+    # Inicializar hoja si está vacía
+    initialize_sheet(sheet)
+    
+    # Cargar datos existentes
+    df_gastos = load_data_from_sheets(sheet)
+    
+    # Sidebar para agregar nuevo gasto
+    with st.sidebar:
+        st.header("➕ Agregar Nuevo Gasto")
+        
+        with st.form("form_gasto"):
+            fecha = st.date_input(
+                "Fecha",
+                value=date.today(),
+                format="DD/MM/YYYY"
+            )
             
-            if agregar_gasto(nuevo_gasto):
-                st.success("✅ ¡Gasto registrado exitosamente!")
-                st.balloons()
-        else:
-            st.error("⚠️ Por favor completa todos los campos obligatorios")
-
-elif opcion == "📊 Ver Gastos":
-    st.header("📊 Historial de Gastos")
+            categoria = st.selectbox(
+                "Categoría",
+                ["Alimentos", "Transporte", "Salud", "Educación", 
+                 "Entretenimiento", "Servicios", "Ropa", "Otros"]
+            )
+            
+            descripcion = st.text_input("Descripción", placeholder="Ej: Supermercado")
+            
+            monto = st.number_input(
+                "Monto ($)",
+                min_value=0.0,
+                step=100.0,
+                format="%.2f"
+            )
+            
+            metodo_pago = st.selectbox(
+                "Método de Pago",
+                ["Efectivo", "Tarjeta de Débito", "Tarjeta de Crédito", 
+                 "Transferencia", "Otro"]
+            )
+            
+            submitted = st.form_submit_button("💾 Guardar Gasto", use_container_width=True)
+            
+            if submitted:
+                if descripcion and monto > 0:
+                    with st.spinner("Guardando gasto..."):
+                        if save_expense_to_sheets(sheet, fecha, categoria, descripcion, monto, metodo_pago):
+                            st.success("✅ Gasto guardado exitosamente!")
+                            st.balloons()
+                            # Recargar datos
+                            st.rerun()
+                        else:
+                            st.error("❌ Error al guardar el gasto")
+                else:
+                    st.warning("⚠️ Por favor completa todos los campos")
+        
+        st.markdown("---")
+        st.info("💡 **Tip:** Todos los gastos se guardan automáticamente en Google Sheets")
     
-    df = obtener_gastos_df()
-    
-    if df.empty:
-        st.warning("⚠️ No hay gastos registrados aún")
+    # Contenido principal
+    if len(df_gastos) == 0:
+        st.info("📝 No hay gastos registrados. ¡Agrega tu primer gasto en el panel lateral!")
     else:
-        # Filtros
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            mes_filtro = st.selectbox(
-                "Filtrar por mes:",
-                ["Todos"] + list(df['fecha'].dt.to_period('M').astype(str).unique())
-            )
-        
-        with col2:
-            categoria_filtro = st.multiselect(
-                "Filtrar por categoría:",
-                options=df['categoria'].unique(),
-                default=None
-            )
-        
-        with col3:
-            tipo_filtro = st.multiselect(
-                "Filtrar por tipo:",
-                options=df['tipo_gasto'].unique(),
-                default=None
-            )
-        
-        # Aplicar filtros
-        df_filtrado = df.copy()
-        
-        if mes_filtro != "Todos":
-            df_filtrado = df_filtrado[df_filtrado['fecha'].dt.to_period('M').astype(str) == mes_filtro]
-        
-        if categoria_filtro:
-            df_filtrado = df_filtrado[df_filtrado['categoria'].isin(categoria_filtro)]
-        
-        if tipo_filtro:
-            df_filtrado = df_filtrado[df_filtrado['tipo_gasto'].isin(tipo_filtro)]
-        
-        # Métricas
+        # Métricas principales
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.metric("💰 Total Gastado", f"${df_filtrado['importe'].sum():,.2f}")
+            total_gastos = df_gastos['Monto'].sum()
+            st.metric("💵 Total Gastos", f"${total_gastos:,.2f}")
         
         with col2:
-            st.metric("📝 Cantidad de Gastos", len(df_filtrado))
+            promedio = df_gastos['Monto'].mean()
+            st.metric("📊 Promedio", f"${promedio:,.2f}")
         
         with col3:
-            st.metric("📊 Promedio", f"${df_filtrado['importe'].mean():,.2f}")
+            num_transacciones = len(df_gastos)
+            st.metric("🔢 Transacciones", num_transacciones)
         
         with col4:
-            st.metric("💳 Gasto Máximo", f"${df_filtrado['importe'].max():,.2f}")
+            categoria_top = df_gastos.groupby('Categoría')['Monto'].sum().idxmax()
+            st.metric("🏆 Categoría Top", categoria_top)
         
         st.markdown("---")
         
-        # Tabla de gastos
-        st.subheader("📋 Detalle de Gastos")
-        
-        # Preparar DataFrame para mostrar
-        df_mostrar = df_filtrado[['fecha', 'concepto', 'categoria', 'importe', 'metodo_pago', 'notas']].copy()
-        df_mostrar['fecha'] = df_mostrar['fecha'].dt.strftime('%d/%m/%Y')
-        df_mostrar['importe'] = df_mostrar['importe'].apply(lambda x: f"${x:,.2f}")
-        
-        st.dataframe(
-            df_mostrar,
-            use_container_width=True,
-            hide_index=True
-        )
-        
-        # Botón de exportación
-        st.markdown("---")
-        col1, col2, col3 = st.columns([1, 1, 1])
-        
-        with col2:
-            if st.button("📥 Exportar a Excel", use_container_width=True):
-                nombre_archivo = f"gastos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-                archivo = exportar_a_excel(df_filtrado, nombre_archivo)
-                if archivo:
-                    with open(archivo, 'rb') as f:
-                        st.download_button(
-                            label="⬇️ Descargar Excel",
-                            data=f,
-                            file_name=nombre_archivo,
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        )
-
-elif opcion == "📈 Análisis":
-    st.header("📈 Análisis de Gastos")
-    
-    df = obtener_gastos_df()
-    
-    if df.empty:
-        st.warning("⚠️ No hay gastos registrados para analizar")
-    else:
-        # Gráficos en tabs
-        tab1, tab2, tab3 = st.tabs(["📊 Por Categoría", "📅 Por Mes", "💳 Por Método de Pago"])
+        # Tabs para diferentes vistas
+        tab1, tab2, tab3 = st.tabs(["📋 Historial", "📊 Análisis", "📥 Exportar"])
         
         with tab1:
-            st.subheader("Gastos por Categoría")
-            gastos_categoria = df.groupby('categoria')['importe'].sum().reset_index()
-            gastos_categoria = gastos_categoria.sort_values('importe', ascending=False)
+            st.subheader("📋 Historial Completo de Gastos")
             
-            fig1 = px.pie(
-                gastos_categoria,
-                values='importe',
-                names='categoria',
-                title='Distribución de Gastos por Categoría',
-                hole=0.4
+            # Filtros
+            col_filtro1, col_filtro2 = st.columns(2)
+            
+            with col_filtro1:
+                categorias_filtro = st.multiselect(
+                    "Filtrar por categoría",
+                    options=df_gastos['Categoría'].unique(),
+                    default=df_gastos['Categoría'].unique()
+                )
+            
+            with col_filtro2:
+                metodos_filtro = st.multiselect(
+                    "Filtrar por método de pago",
+                    options=df_gastos['Método de Pago'].unique(),
+                    default=df_gastos['Método de Pago'].unique()
+                )
+            
+            # Aplicar filtros
+            df_filtrado = df_gastos[
+                (df_gastos['Categoría'].isin(categorias_filtro)) &
+                (df_gastos['Método de Pago'].isin(metodos_filtro))
+            ]
+            
+            # Mostrar tabla
+            st.dataframe(
+                df_filtrado.sort_values('Fecha', ascending=False),
+                use_container_width=True,
+                hide_index=True
             )
-            fig1.update_traces(textposition='inside', textinfo='percent+label')
-            st.plotly_chart(fig1, use_container_width=True)
             
-            # Tabla de desglose
-            st.dataframe(gastos_categoria, use_container_width=True, hide_index=True)
+            # Resumen del filtro
+            st.info(f"📊 Mostrando {len(df_filtrado)} de {len(df_gastos)} transacciones | Total: ${df_filtrado['Monto'].sum():,.2f}")
         
         with tab2:
-            st.subheader("Evolución Mensual")
-            df['mes'] = df['fecha'].dt.to_period('M').astype(str)
-            gastos_mes = df.groupby('mes')['importe'].sum().reset_index()
+            st.subheader("📊 Análisis de Gastos")
             
-            fig2 = px.line(
-                gastos_mes,
-                x='mes',
-                y='importe',
-                title='Evolución de Gastos por Mes',
+            col_graph1, col_graph2 = st.columns(2)
+            
+            with col_graph1:
+                # Gráfico de gastos por categoría
+                gastos_categoria = df_gastos.groupby('Categoría')['Monto'].sum().sort_values(ascending=False)
+                fig1 = px.bar(
+                    x=gastos_categoria.values,
+                    y=gastos_categoria.index,
+                    orientation='h',
+                    title="Gastos por Categoría",
+                    labels={'x': 'Monto ($)', 'y': 'Categoría'},
+                    color=gastos_categoria.values,
+                    color_continuous_scale='Blues'
+                )
+                st.plotly_chart(fig1, use_container_width=True)
+            
+            with col_graph2:
+                # Gráfico de distribución por método de pago
+                gastos_metodo = df_gastos.groupby('Método de Pago')['Monto'].sum()
+                fig2 = px.pie(
+                    values=gastos_metodo.values,
+                    names=gastos_metodo.index,
+                    title="Distribución por Método de Pago",
+                    hole=0.4
+                )
+                st.plotly_chart(fig2, use_container_width=True)
+            
+            # Gráfico de evolución temporal
+            st.subheader("📈 Evolución de Gastos en el Tiempo")
+            df_tiempo = df_gastos.groupby('Fecha')['Monto'].sum().reset_index()
+            fig3 = px.line(
+                df_tiempo,
+                x='Fecha',
+                y='Monto',
+                title="Gastos Diarios",
                 markers=True
-            )
-            fig2.update_layout(xaxis_title="Mes", yaxis_title="Importe ($)")
-            st.plotly_chart(fig2, use_container_width=True)
-            
-            # Gráfico de barras por categoría por mes
-            gastos_mes_cat = df.groupby(['mes', 'categoria'])['importe'].sum().reset_index()
-            fig3 = px.bar(
-                gastos_mes_cat,
-                x='mes',
-                y='importe',
-                color='categoria',
-                title='Gastos por Categoría y Mes',
-                barmode='stack'
             )
             st.plotly_chart(fig3, use_container_width=True)
         
         with tab3:
-            st.subheader("Gastos por Método de Pago")
-            gastos_metodo = df.groupby('metodo_pago')['importe'].sum().reset_index()
-            gastos_metodo = gastos_metodo.sort_values('importe', ascending=True)
+            st.subheader("📥 Exportar Datos")
             
-            fig4 = px.bar(
-                gastos_metodo,
-                x='importe',
-                y='metodo_pago',
-                orientation='h',
-                title='Distribución por Método de Pago'
-            )
-            st.plotly_chart(fig4, use_container_width=True)
+            col_export1, col_export2 = st.columns(2)
+            
+            with col_export1:
+                # Exportar a CSV
+                csv = df_gastos.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📄 Descargar CSV",
+                    data=csv,
+                    file_name=f'gastos_{datetime.now().strftime("%Y%m%d")}.csv',
+                    mime='text/csv',
+                    use_container_width=True
+                )
+            
+            with col_export2:
+                # Exportar a Excel
+                from io import BytesIO
+                buffer = BytesIO()
+                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                    df_gastos.to_excel(writer, index=False, sheet_name='Gastos')
+                
+                st.download_button(
+                    label="📊 Descargar Excel",
+                    data=buffer.getvalue(),
+                    file_name=f'gastos_{datetime.now().strftime("%Y%m%d")}.xlsx',
+                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    use_container_width=True
+                )
+            
+            st.info("💾 Los datos también están disponibles en tu Google Sheet")
+            st.markdown(f"[🔗 Abrir Google Sheet](https://docs.google.com/spreadsheets/d/{st.secrets['google_sheets']['spreadsheet_id']})")
 
-elif opcion == "⚙️ Configuración":
-    st.header("⚙️ Configuración")
-    
-    st.subheader("🗑️ Gestión de Datos")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("🔄 Reiniciar Datos", type="secondary"):
-            if st.checkbox("⚠️ Confirmar reinicio (se perderán todos los datos)"):
-                guardar_datos({"gastos": []})
-                st.success("✅ Datos reiniciados correctamente")
-                st.rerun()
-    
-    with col2:
-        st.info("💡 **Tip:** Puedes exportar tus datos antes de reiniciar desde la sección 'Ver Gastos'")
-    
-    st.markdown("---")
-    st.subheader("📊 Estadísticas Generales")
-    
-    df = obtener_gastos_df()
-    if not df.empty:
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("📝 Total de registros", len(df))
-        with col2:
-            st.metric("💰 Gasto total acumulado", f"${df['importe'].sum():,.2f}")
-        with col3:
-            meses_unicos = df['fecha'].dt.to_period('M').nunique()
-            st.metric("📅 Meses registrados", meses_unicos)
-
-# Footer
-st.markdown("---")
-st.markdown(
-    """
-    <div style='text-align: center; color: #666;'>
-        <p>💰 Sistema de Registro de Gastos Mensuales | Desarrollado con ❤️ usando Streamlit</p>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+if __name__ == "__main__":
+    main()
