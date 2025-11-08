@@ -34,27 +34,29 @@ st.markdown("""
 
 # Función para conectar con Google Sheets
 @st.cache_resource
-def get_google_sheet():
-    """Conecta con Google Sheets usando las credenciales de Streamlit Secrets"""
+def load_data_from_sheets(sheet):
+    """Carga todos los datos desde Google Sheets con depuración"""
     try:
-        # Obtener credenciales desde secrets
-        credentials_dict = dict(st.secrets["gcp_service_account"])
-        credentials = service_account.Credentials.from_service_account_info(
-        credentials_dict,
-        scopes=["https://www.googleapis.com/auth/spreadsheets"]
-   )
+        data = sheet.get_all_records()  # Cargar registros
+        st.write("Datos crudos cargados desde Google Sheets:", data)  # Mostrar datos crudos
         
-        # Autorizar y obtener el cliente
-        client = gspread.authorize(credentials)
-        
-        # Abrir la hoja de cálculo
-        spreadsheet_id = st.secrets["google_sheets"]["spreadsheet_id"]
-        sheet = client.open_by_key(spreadsheet_id).sheet1
-        
-        return sheet
+        if data:
+            df = pd.DataFrame(data)  # Convertir a DataFrame
+            # Validar encabezados y contenido
+            st.write("DataFrame previo a modificación:", df)
+            # Convertir fecha a datetime si existe la columna 'Fecha'
+            if 'Fecha' in df.columns:
+                df['Fecha'] = pd.to_datetime(df['Fecha'], format='%d/%m/%Y', errors='coerce')
+            # Asegurarse de que 'Monto' sea numérico para evitar errores
+            if 'Monto' in df.columns:
+                df['Monto'] = pd.to_numeric(df['Monto'], errors='coerce')
+            return df
+        else:
+            st.warning("No se encontraron datos en la hoja de cálculo.")
+            return pd.DataFrame(columns=['Fecha', 'Categoría', 'Descripción', 'Monto', 'Método de Pago'])
     except Exception as e:
-        st.error(f"Error al conectar con Google Sheets: {str(e)}")
-        return None
+        st.error(f"Error al cargar datos: {str(e)}")
+        return pd.DataFrame(columns=['Fecha', 'Categoría', 'Descripción', 'Monto', 'Método de Pago'])
 
 # Función para cargar datos desde Google Sheets
 def load_data_from_sheets(sheet):
