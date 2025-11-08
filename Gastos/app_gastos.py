@@ -41,7 +41,7 @@ def get_google_sheet():
         credentials_dict = dict(st.secrets["gcp_service_account"])
         credentials = service_account.Credentials.from_service_account_info(
         credentials_dict,
-        scopes=scope
+        scopes=["https://www.googleapis.com/auth/spreadsheets"]
    )
         
         # Autorizar y obtener el cliente
