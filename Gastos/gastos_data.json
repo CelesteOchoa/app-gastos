@@ -1,0 +1,37 @@
+{
+  "gastos": [
+    {
+      "fecha": "2025-11-08",
+      "concepto": "COM CUENTA EXPRESS ",
+      "categoria": "COM CUENTA EXPRESS ",
+      "importe": 16673.0,
+      "tipo_gasto": "💳 Gasto con Tarjeta",
+      "metodo_pago": "BBVA",
+      "cuotas": 1,
+      "notas": "",
+      "timestamp": "2025-11-08T11:04:53.538071"
+    },
+    {
+      "fecha": "2025-11-08",
+      "concepto": "SPORTING",
+      "categoria": "SPORTING",
+      "importe": 29999.0,
+      "tipo_gasto": "💳 Gasto con Tarjeta",
+      "metodo_pago": "BBVA",
+      "cuotas": 1,
+      "notas": "Cuota 05/06",
+      "timestamp": "2025-11-08T11:06:28.966752"
+    },
+    {
+      "fecha": "2025-11-08",
+      "concepto": "MOOV MENDOZA CAP",
+      "categoria": "MOOV MENDOZA CAP",
+      "importe": 9999.0,
+      "tipo_gasto": "💳 Gasto con Tarjeta",
+      "metodo_pago": "BBVA",
+      "cuotas": 1,
+      "notas": "Cuota 05/06",
+      "timestamp": "2025-11-08T11:07:02.287361"
+    }
+  ]
+}

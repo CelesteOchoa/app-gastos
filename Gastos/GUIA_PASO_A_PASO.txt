@@ -1,0 +1,246 @@
+╔════════════════════════════════════════════════════════════════╗
+║       💰 GUÍA PASO A PASO - REGISTRO DE GASTOS 💰            ║
+║                  ¡Super Fácil de Usar!                         ║
+╚════════════════════════════════════════════════════════════════╝
+
+📋 CONTENIDO DE ESTA GUÍA:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. ¿Qué es este programa?
+2. Instalación (solo la primera vez)
+3. Cómo ejecutar el programa
+4. Cómo usar cada función
+5. Solución de problemas comunes
+
+
+═══════════════════════════════════════════════════════════════════
+  1️⃣  ¿QUÉ ES ESTE PROGRAMA?
+═══════════════════════════════════════════════════════════════════
+
+Es una aplicación web moderna que se ejecuta en tu computadora y te 
+permite:
+
+✅ Registrar gastos fácilmente (¡más rápido que en Excel!)
+✅ Ver todos tus gastos organizados
+✅ Crear gráficos automáticos de tus finanzas
+✅ Exportar todo a Excel cuando quieras
+✅ Analizar en qué gastas más
+
+Lo mejor: ¡TODO queda guardado en tu computadora! No necesitas internet
+después de la instalación.
+
+
+═══════════════════════════════════════════════════════════════════
+  2️⃣  INSTALACIÓN (SOLO LA PRIMERA VEZ)
+═══════════════════════════════════════════════════════════════════
+
+Paso 1: Verificar que tienes Python
+───────────────────────────────────
+Abre la terminal y escribe:
+    python --version
+
+Si ves algo como "Python 3.8" o mayor: ¡Perfecto! Pasa al Paso 2.
+Si dice "comando no encontrado": Descarga Python desde python.org
+
+
+Paso 2: Instalar las herramientas necesarias
+─────────────────────────────────────────────
+Copia y pega esto en la terminal (todo junto):
+
+    pip install streamlit pandas openpyxl plotly
+
+Espera unos minutos mientras se instala todo.
+
+
+Paso 3: Descargar los archivos del programa
+────────────────────────────────────────────
+Ya los tienes en tu carpeta de descargas:
+    ✓ app_gastos.py
+    ✓ README.md
+    ✓ importar_excel.py
+
+Crea una carpeta llamada "MisGastos" y guarda allí estos 3 archivos.
+
+
+═══════════════════════════════════════════════════════════════════
+  3️⃣  CÓMO EJECUTAR EL PROGRAMA
+═══════════════════════════════════════════════════════════════════
+
+PASO A: Abrir la terminal
+──────────────────────────
+• Windows: Presiona Win + R, escribe "cmd", Enter
+• Mac: Presiona Cmd + Espacio, escribe "terminal", Enter
+• Linux: Presiona Ctrl + Alt + T
+
+
+PASO B: Ir a la carpeta del programa
+─────────────────────────────────────
+Escribe (ajusta la ruta según donde guardaste los archivos):
+
+    cd Documentos/MisGastos
+
+o donde sea que hayas guardado la carpeta.
+
+
+PASO C: Ejecutar el programa
+─────────────────────────────
+Escribe:
+
+    streamlit run app_gastos.py
+
+¡Y listo! En unos segundos se abrirá tu navegador con el programa.
+
+
+═══════════════════════════════════════════════════════════════════
+  4️⃣  CÓMO USAR CADA FUNCIÓN
+═══════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 📝 REGISTRAR UN GASTO                                           │
+└─────────────────────────────────────────────────────────────────┘
+
+1. Haz clic en "📝 Registrar Gasto" en el menú izquierdo
+
+2. Elige el tipo de gasto:
+   • 💳 Gasto con Tarjeta → Para compras con tarjeta de crédito
+   • 💵 Gasto Fijo → Para alquiler, servicios, etc.
+   • 🛒 Gasto Variable → Para supermercado, ropa, etc.
+
+3. Completa los datos:
+   Fecha: La fecha en que hiciste el gasto
+   Concepto: Qué compraste (ej: "Supermercado Carrefour")
+   Importe: Cuánto pagaste en pesos
+   Método de pago: Efectivo, tarjeta, transferencia, etc.
+   Notas: Cualquier cosa extra que quieras recordar
+
+4. Presiona "💾 Guardar Gasto"
+
+¡Listo! Verás un mensaje de confirmación y globitos 🎈
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 📊 VER TUS GASTOS                                               │
+└─────────────────────────────────────────────────────────────────┘
+
+1. Haz clic en "📊 Ver Gastos"
+
+2. Usa los filtros si quieres:
+   • Ver solo un mes específico
+   • Ver solo una categoría (ej: solo "Supermercado")
+   • Ver solo un tipo de gasto
+
+3. En la parte superior verás:
+   💰 Total gastado
+   📝 Cantidad de gastos
+   📊 Promedio por gasto
+   💳 El gasto más grande
+
+4. Más abajo verás una tabla con TODO el detalle
+
+5. Si quieres Excel: presiona "📥 Exportar a Excel"
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│ 📈 ANÁLISIS DE GASTOS                                           │
+└─────────────────────────────────────────────────────────────────┘
+
+1. Haz clic en "📈 Análisis"
+
+2. Explora las 3 pestañas:
+
+   📊 Por Categoría:
+   → Gráfico de torta que muestra en qué gastas más
+   → Ideal para identificar tus gastos principales
+
+   📅 Por Mes:
+   → Línea de tiempo mostrando cómo evolucionan tus gastos
+   → Gráfico de barras por categoría cada mes
+
+   💳 Por Método de Pago:
+   → Cuánto gastas con cada tarjeta o método
+   → Útil para controlar el uso de tarjetas
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│ ⚙️ CONFIGURACIÓN                                                │
+└─────────────────────────────────────────────────────────────────┘
+
+1. Haz clic en "⚙️ Configuración"
+
+2. Aquí puedes:
+   • Ver estadísticas generales
+   • Reiniciar todos los datos (¡cuidado!)
+
+
+═══════════════════════════════════════════════════════════════════
+  5️⃣  SOLUCIÓN DE PROBLEMAS
+═══════════════════════════════════════════════════════════════════
+
+❓ El programa no inicia
+─────────────────────────
+✓ Verifica que Python esté instalado: python --version
+✓ Instala las librerías: pip install streamlit pandas openpyxl plotly
+✓ Asegúrate de estar en la carpeta correcta
+
+
+❓ Se cierra solo
+─────────────────
+✓ No cierres la ventana de la terminal (consola)
+✓ Solo puedes cerrar el navegador, la terminal debe quedar abierta
+
+
+❓ No veo mis gastos
+────────────────────
+✓ Primero tienes que registrar gastos en "📝 Registrar Gasto"
+✓ Los datos se guardan en "gastos_data.json" en la misma carpeta
+
+
+❓ Quiero importar mi Excel viejo
+─────────────────────────────────
+1. Copia tu archivo Excel a la carpeta del programa
+2. En la terminal escribe:
+   python importar_excel.py nombre_de_tu_archivo.xlsx
+3. Espera a que termine
+4. Ejecuta el programa normalmente
+
+
+❓ Cómo detengo el programa
+───────────────────────────
+En la terminal donde está corriendo, presiona: Ctrl + C
+
+
+═══════════════════════════════════════════════════════════════════
+  💡 CONSEJOS Y TIPS
+═══════════════════════════════════════════════════════════════════
+
+✨ Crea el hábito de registrar gastos diariamente
+   Es más fácil que hacerlo todo junto al final del mes
+
+✨ Usa las notas para detalles importantes
+   Por ejemplo: "Compra con descuento 50%"
+
+✨ Revisa el análisis mensualmente
+   Te ayudará a identificar donde puedes ahorrar
+
+✨ Exporta a Excel regularmente
+   Como respaldo de tu información
+
+✨ Los gastos en cuotas
+   El programa los registra completos, pero puedes ver el detalle
+
+
+═══════════════════════════════════════════════════════════════════
+  📞 ¿NECESITAS MÁS AYUDA?
+═══════════════════════════════════════════════════════════════════
+
+Si algo no funciona o tienes dudas:
+
+1. Lee primero el archivo README.md (tiene más detalles técnicos)
+2. Revisa que todos los archivos estén en la misma carpeta
+3. Verifica que la terminal muestre la dirección web correcta
+
+
+═══════════════════════════════════════════════════════════════════
+
+                ¡DISFRUTA CONTROLANDO TUS GASTOS! 💰✨
+
+═══════════════════════════════════════════════════════════════════
