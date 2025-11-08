@@ -54,9 +54,13 @@ def get_google_sheet():
         st.error(f"Error al conectar con Google Sheets: {str(e)}")
         return None
 
-def load_data_from_sheets(sheet):
+def load_data_from_sheets():
     """Carga datos desde Google Sheets sin caché para obtener datos actualizados."""
     try:
+        sheet = get_google_sheet()
+        if sheet is None:
+            return pd.DataFrame(columns=['Fecha', 'Categoría', 'Descripción', 'Monto', 'Método de Pago'])
+
         data = sheet.get_all_records()
         if data:
             df = pd.DataFrame(data)
@@ -96,7 +100,7 @@ def main():
         st.error("⚠️ No se pudo conectar con Google Sheets. Verifica la configuración de Secrets.")
         return
     initialize_sheet(sheet)
-    df_gastos = load_data_from_sheets(sheet)
+    df_gastos = load_data_from_sheets()
     # Sidebar para agregar un nuevo gasto ...
     # Resto del código de funcionalidad...
 
