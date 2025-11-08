@@ -34,6 +34,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Función para conectar con Google Sheets
+@st.cache_resource
 def get_google_sheet():
     """Establece conexión con Google Sheets y devuelve una referencia a la hoja de cálculo."""
     try:
@@ -41,7 +42,7 @@ def get_google_sheet():
         creds_dict = st.secrets["gcp_service_account"]
         SCOPES = ['https://www.googleapis.com/auth/spreadsheets',  # Acceso a Google Sheets
                   'https://www.googleapis.com/auth/drive']  # Acceso opcional a Google Drive
-        
+
         credentials = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
         client = gspread.authorize(credentials)
 
@@ -53,12 +54,16 @@ def get_google_sheet():
         st.error(f"Error al conectar con Google Sheets: {str(e)}")
         return None
 
-@st.cache_resource
-def load_data_from_sheets(sheet):
+def load_data_from_sheets():
+    """Carga datos desde Google Sheets sin caché para obtener datos actualizados."""
     try:
+        sheet = get_google_sheet()
+        if sheet is None:
+            return pd.DataFrame(columns=['Fecha', 'Categoría', 'Descripción', 'Monto', 'Método de Pago'])
+
         data = sheet.get_all_records()
         if data:
-            df = pd.DataFrame(data)            
+            df = pd.DataFrame(data)
             if 'Fecha' in df.columns:
                 df['Fecha'] = pd.to_datetime(df['Fecha'], format='%d/%m/%Y', errors='coerce')
             if 'Monto' in df.columns:
@@ -95,7 +100,7 @@ def main():
         st.error("⚠️ No se pudo conectar con Google Sheets. Verifica la configuración de Secrets.")
         return
     initialize_sheet(sheet)
-    df_gastos = load_data_from_sheets(sheet)
+    df_gastos = load_data_from_sheets()
     # Sidebar para agregar un nuevo gasto ...
     # Resto del código de funcionalidad...
 
