@@ -106,14 +106,15 @@ def get_google_sheet():
     """Establece conexión con Google Sheets y devuelve una referencia a la hoja de cálculo."""
     try:
         # Cargar credenciales desde Streamlit Secrets
-        creds_dict = st.secrets["google_sheets"]  # Verifica que las credenciales estén configuradas correctamente
+        creds_dict = st.secrets["gcp_service_account"]  # Verifica que las credenciales estén configuradas correctamente
         credentials = service_account.Credentials.from_service_account_info(creds_dict)
 
         # Autorizar con gspread
         client = gspread.authorize(credentials)
 
         # Abrir la hoja de cálculo por ID definido en Secrets
-        sheet = client.open_by_key(creds_dict["spreadsheet_id"]).sheet1
+        sheet_id = st.secrets["google_sheets"]["spreadsheet_id"]
+        sheet = client.open_by_key(sheet_id).sheet1
         return sheet
     except Exception as e:
         st.error(f"Error al conectar con Google Sheets: {str(e)}")
