@@ -4,7 +4,7 @@ from datetime import datetime, date
 import plotly.express as px
 import plotly.graph_objects as go
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2 import service_account
 import json
 
 # Configuración de la página
@@ -37,15 +37,12 @@ st.markdown("""
 def get_google_sheet():
     """Conecta con Google Sheets usando las credenciales de Streamlit Secrets"""
     try:
-        # Configurar credenciales desde Streamlit Secrets
-        scope = [
-            'https://spreadsheets.google.com/feeds',
-            'https://www.googleapis.com/auth/drive'
-        ]
-        
         # Obtener credenciales desde secrets
-        credentials_dict = dict(st.secrets["gcp_service_account"])
-        credentials = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+   credentials_dict = dict(st.secrets["gcp_service_account"])
+   credentials = service_account.Credentials.from_service_account_info(
+       credentials_dict,
+       scopes=scope
+   )
         
         # Autorizar y obtener el cliente
         client = gspread.authorize(credentials)
