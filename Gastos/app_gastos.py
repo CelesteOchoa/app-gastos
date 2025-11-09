@@ -102,37 +102,24 @@ def main():
     st.markdown('<h1 class="main-header">💰 Registro de Gastos</h1>', unsafe_allow_html=True)
     st.markdown("---")
 
-    try:
-        # Conectar con Google Sheets
-        st.write("🔄 Conectando con Google Sheets...")
-        sheet = get_google_sheet()
-        st.write("✅ Conexión establecida")
+    # Conectar con Google Sheets
+    sheet = get_google_sheet()
 
-        if sheet is None:
-            st.error("⚠️ No se pudo conectar con Google Sheets. Verifica la configuración de Secrets.")
-            st.info("""
-            **Pasos para configurar:**
-            1. Ve a Settings de tu app en Streamlit Cloud
-            2. Agrega tus credenciales en la sección Secrets
-            3. Reinicia la app
-            """)
-            return
-
-        # Inicializar hoja si está vacía
-        st.write("🔄 Inicializando hoja...")
-        initialize_sheet(sheet)
-        st.write("✅ Hoja inicializada")
-
-        # Cargar datos existentes
-        st.write("🔄 Cargando datos...")
-        df_gastos = load_data_from_sheets()
-        st.write(f"✅ Datos cargados: {len(df_gastos)} registros")
-
-    except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
-        import traceback
-        st.code(traceback.format_exc())
+    if sheet is None:
+        st.error("⚠️ No se pudo conectar con Google Sheets. Verifica la configuración de Secrets.")
+        st.info("""
+        **Pasos para configurar:**
+        1. Ve a Settings de tu app en Streamlit Cloud
+        2. Agrega tus credenciales en la sección Secrets
+        3. Reinicia la app
+        """)
         return
+
+    # Inicializar hoja si está vacía
+    initialize_sheet(sheet)
+
+    # Cargar datos existentes
+    df_gastos = load_data_from_sheets()
 
     # Sidebar para agregar nuevo gasto
     with st.sidebar:
@@ -187,8 +174,6 @@ def main():
     # Contenido principal
     if len(df_gastos) == 0 or 'Monto' not in df_gastos.columns:
         st.info("📝 No hay gastos registrados. ¡Agrega tu primer gasto en el panel lateral!")
-        if len(df_gastos) > 0:
-            st.warning(f"⚠️ El DataFrame tiene {len(df_gastos)} filas pero le faltan columnas. Columnas actuales: {list(df_gastos.columns)}")
     else:
         # Métricas principales
         col1, col2, col3, col4 = st.columns(4)
