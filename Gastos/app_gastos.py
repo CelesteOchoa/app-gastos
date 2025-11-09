@@ -182,8 +182,10 @@ def main():
         st.info("💡 **Tip:** Todos los gastos se guardan automáticamente en Google Sheets")
 
     # Contenido principal
-    if len(df_gastos) == 0:
+    if len(df_gastos) == 0 or 'Monto' not in df_gastos.columns:
         st.info("📝 No hay gastos registrados. ¡Agrega tu primer gasto en el panel lateral!")
+        if len(df_gastos) > 0:
+            st.warning(f"⚠️ El DataFrame tiene {len(df_gastos)} filas pero le faltan columnas. Columnas actuales: {list(df_gastos.columns)}")
     else:
         # Métricas principales
         col1, col2, col3, col4 = st.columns(4)
