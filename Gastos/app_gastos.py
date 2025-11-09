@@ -135,7 +135,7 @@ def main():
             categoria = st.selectbox(
                 "Categoría",
                 ["Alimentos", "Transporte", "Salud", "Educación",
-                 "Entretenimiento", "Servicios", "Ropa", "Otros"]
+                 "Entretenimiento", "Servicios", "Ropa", "Casa"]
             )
 
             descripcion = st.text_input("Descripción", placeholder="Ej: Supermercado")
@@ -149,8 +149,8 @@ def main():
 
             metodo_pago = st.selectbox(
                 "Método de Pago",
-                ["Efectivo", "Tarjeta de Débito", "Tarjeta de Crédito",
-                 "Transferencia", "Otro"]
+                ["BBVA", "Macro", "Naranja",
+                 "Santander", "Transferencia"]
             )
 
             submitted = st.form_submit_button("💾 Guardar Gasto", use_container_width=True)
