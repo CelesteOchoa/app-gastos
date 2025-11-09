@@ -64,6 +64,9 @@ def load_data_from_sheets():
         data = sheet.get_all_records()
         if data:
             df = pd.DataFrame(data)
+            # Limpiar nombres de columnas eliminando espacios en blanco
+            df.columns = df.columns.str.strip()
+
             if 'Fecha' in df.columns:
                 df['Fecha'] = pd.to_datetime(df['Fecha'], format='%d/%m/%Y', errors='coerce')
             if 'Monto' in df.columns:
