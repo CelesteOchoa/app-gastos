@@ -218,21 +218,24 @@ def main():
                 categorias_filtro = st.multiselect(
                     "Filtrar por categoría",
                     options=df_gastos['Categoría'].unique(),
-                    default=df_gastos['Categoría'].unique()
+                    default=[]
                 )
 
             with col_filtro2:
                 metodos_filtro = st.multiselect(
                     "Filtrar por método de pago",
                     options=df_gastos['Método de Pago'].unique(),
-                    default=df_gastos['Método de Pago'].unique()
+                    default=[]
                 )
 
-            # Aplicar filtros
-            df_filtrado = df_gastos[
-                (df_gastos['Categoría'].isin(categorias_filtro)) &
-                (df_gastos['Método de Pago'].isin(metodos_filtro))
-            ]
+            # Aplicar filtros (si no hay filtros, mostrar todo)
+            df_filtrado = df_gastos.copy()
+
+            if len(categorias_filtro) > 0:
+                df_filtrado = df_filtrado[df_filtrado['Categoría'].isin(categorias_filtro)]
+
+            if len(metodos_filtro) > 0:
+                df_filtrado = df_filtrado[df_filtrado['Método de Pago'].isin(metodos_filtro)]
 
             # Mostrar tabla
             st.dataframe(
