@@ -64,6 +64,9 @@ def load_data_from_sheets():
         data = sheet.get_all_records()
         if data:
             df = pd.DataFrame(data)
+            # Limpiar nombres de columnas eliminando espacios en blanco
+            df.columns = df.columns.str.strip()
+
             if 'Fecha' in df.columns:
                 df['Fecha'] = pd.to_datetime(df['Fecha'], format='%d/%m/%Y', errors='coerce')
             if 'Monto' in df.columns:
@@ -85,6 +88,15 @@ def save_expense_to_sheets(sheet, fecha, categoria, descripcion, monto, metodo_p
         st.error(f"Error al guardar gasto: {str(e)}")
         return False
 
+def delete_expense_from_sheets(sheet, row_index):
+    """Elimina un gasto de Google Sheets por índice de fila (1-indexed, incluyendo header)"""
+    try:
+        sheet.delete_rows(row_index)
+        return True
+    except Exception as e:
+        st.error(f"Error al eliminar gasto: {str(e)}")
+        return False
+
 def initialize_sheet(sheet):
     try:
         if len(sheet.get_all_values()) == 0:
@@ -99,37 +111,24 @@ def main():
     st.markdown('<h1 class="main-header">💰 Registro de Gastos</h1>', unsafe_allow_html=True)
     st.markdown("---")
 
-    try:
-        # Conectar con Google Sheets
-        st.write("🔄 Conectando con Google Sheets...")
-        sheet = get_google_sheet()
-        st.write("✅ Conexión establecida")
+    # Conectar con Google Sheets
+    sheet = get_google_sheet()
 
-        if sheet is None:
-            st.error("⚠️ No se pudo conectar con Google Sheets. Verifica la configuración de Secrets.")
-            st.info("""
-            **Pasos para configurar:**
-            1. Ve a Settings de tu app en Streamlit Cloud
-            2. Agrega tus credenciales en la sección Secrets
-            3. Reinicia la app
-            """)
-            return
-
-        # Inicializar hoja si está vacía
-        st.write("🔄 Inicializando hoja...")
-        initialize_sheet(sheet)
-        st.write("✅ Hoja inicializada")
-
-        # Cargar datos existentes
-        st.write("🔄 Cargando datos...")
-        df_gastos = load_data_from_sheets()
-        st.write(f"✅ Datos cargados: {len(df_gastos)} registros")
-
-    except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
-        import traceback
-        st.code(traceback.format_exc())
+    if sheet is None:
+        st.error("⚠️ No se pudo conectar con Google Sheets. Verifica la configuración de Secrets.")
+        st.info("""
+        **Pasos para configurar:**
+        1. Ve a Settings de tu app en Streamlit Cloud
+        2. Agrega tus credenciales en la sección Secrets
+        3. Reinicia la app
+        """)
         return
+
+    # Inicializar hoja si está vacía
+    initialize_sheet(sheet)
+
+    # Cargar datos existentes
+    df_gastos = load_data_from_sheets()
 
     # Sidebar para agregar nuevo gasto
     with st.sidebar:
@@ -145,7 +144,7 @@ def main():
             categoria = st.selectbox(
                 "Categoría",
                 ["Alimentos", "Transporte", "Salud", "Educación",
-                 "Entretenimiento", "Servicios", "Ropa", "Otros"]
+                 "Entretenimiento", "Servicios", "Ropa", "Casa"]
             )
 
             descripcion = st.text_input("Descripción", placeholder="Ej: Supermercado")
@@ -159,8 +158,8 @@ def main():
 
             metodo_pago = st.selectbox(
                 "Método de Pago",
-                ["Efectivo", "Tarjeta de Débito", "Tarjeta de Crédito",
-                 "Transferencia", "Otro"]
+                ["BBVA", "Macro", "Naranja",
+                 "Santander", "Transferencia"]
             )
 
             submitted = st.form_submit_button("💾 Guardar Gasto", use_container_width=True)
@@ -182,7 +181,7 @@ def main():
         st.info("💡 **Tip:** Todos los gastos se guardan automáticamente en Google Sheets")
 
     # Contenido principal
-    if len(df_gastos) == 0:
+    if len(df_gastos) == 0 or 'Monto' not in df_gastos.columns:
         st.info("📝 No hay gastos registrados. ¡Agrega tu primer gasto en el panel lateral!")
     else:
         # Métricas principales
@@ -244,6 +243,46 @@ def main():
 
             # Resumen del filtro
             st.info(f"📊 Mostrando {len(df_filtrado)} de {len(df_gastos)} transacciones | Total: ${df_filtrado['Monto'].sum():,.2f}")
+
+            # Sección para eliminar gastos
+            st.markdown("---")
+            with st.expander("🗑️ Eliminar Gasto"):
+                st.warning("⚠️ Esta acción no se puede deshacer")
+
+                # Crear una lista de gastos para seleccionar
+                if len(df_gastos) > 0:
+                    # Crear opciones de selección con formato legible
+                    df_display = df_gastos.copy()
+                    df_display['Fecha_str'] = df_display['Fecha'].dt.strftime('%d/%m/%Y')
+                    df_display['display'] = (
+                        df_display['Fecha_str'] + ' - ' +
+                        df_display['Categoría'] + ' - ' +
+                        df_display['Descripción'] + ' - $' +
+                        df_display['Monto'].astype(str)
+                    )
+
+                    opciones = df_display['display'].tolist()
+
+                    gasto_seleccionado = st.selectbox(
+                        "Selecciona el gasto a eliminar:",
+                        options=range(len(opciones)),
+                        format_func=lambda x: opciones[x]
+                    )
+
+                    col_del1, col_del2 = st.columns([1, 3])
+                    with col_del1:
+                        if st.button("🗑️ Eliminar", type="primary", use_container_width=True):
+                            # El índice en Google Sheets es +2 (1 para header, 1 para 0-indexing)
+                            row_to_delete = gasto_seleccionado + 2
+
+                            with st.spinner("Eliminando gasto..."):
+                                if delete_expense_from_sheets(sheet, row_to_delete):
+                                    st.success("✅ Gasto eliminado exitosamente!")
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Error al eliminar el gasto")
+                else:
+                    st.info("No hay gastos para eliminar")
 
         with tab2:
             st.subheader("📊 Análisis de Gastos")
