@@ -88,6 +88,15 @@ def save_expense_to_sheets(sheet, fecha, categoria, descripcion, monto, metodo_p
         st.error(f"Error al guardar gasto: {str(e)}")
         return False
 
+def delete_expense_from_sheets(sheet, row_index):
+    """Elimina un gasto de Google Sheets por índice de fila (1-indexed, incluyendo header)"""
+    try:
+        sheet.delete_rows(row_index)
+        return True
+    except Exception as e:
+        st.error(f"Error al eliminar gasto: {str(e)}")
+        return False
+
 def initialize_sheet(sheet):
     try:
         if len(sheet.get_all_values()) == 0:
@@ -234,6 +243,46 @@ def main():
 
             # Resumen del filtro
             st.info(f"📊 Mostrando {len(df_filtrado)} de {len(df_gastos)} transacciones | Total: ${df_filtrado['Monto'].sum():,.2f}")
+
+            # Sección para eliminar gastos
+            st.markdown("---")
+            with st.expander("🗑️ Eliminar Gasto"):
+                st.warning("⚠️ Esta acción no se puede deshacer")
+
+                # Crear una lista de gastos para seleccionar
+                if len(df_gastos) > 0:
+                    # Crear opciones de selección con formato legible
+                    df_display = df_gastos.copy()
+                    df_display['Fecha_str'] = df_display['Fecha'].dt.strftime('%d/%m/%Y')
+                    df_display['display'] = (
+                        df_display['Fecha_str'] + ' - ' +
+                        df_display['Categoría'] + ' - ' +
+                        df_display['Descripción'] + ' - $' +
+                        df_display['Monto'].astype(str)
+                    )
+
+                    opciones = df_display['display'].tolist()
+
+                    gasto_seleccionado = st.selectbox(
+                        "Selecciona el gasto a eliminar:",
+                        options=range(len(opciones)),
+                        format_func=lambda x: opciones[x]
+                    )
+
+                    col_del1, col_del2 = st.columns([1, 3])
+                    with col_del1:
+                        if st.button("🗑️ Eliminar", type="primary", use_container_width=True):
+                            # El índice en Google Sheets es +2 (1 para header, 1 para 0-indexing)
+                            row_to_delete = gasto_seleccionado + 2
+
+                            with st.spinner("Eliminando gasto..."):
+                                if delete_expense_from_sheets(sheet, row_to_delete):
+                                    st.success("✅ Gasto eliminado exitosamente!")
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Error al eliminar el gasto")
+                else:
+                    st.info("No hay gastos para eliminar")
 
         with tab2:
             st.subheader("📊 Análisis de Gastos")
