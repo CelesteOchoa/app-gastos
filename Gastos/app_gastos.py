@@ -33,6 +33,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Función para formatear montos en formato argentino
+def format_pesos(monto):
+    """Formatea un monto en pesos argentinos: 10.000,30"""
+    return f"${monto:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
 # Función para conectar con Google Sheets
 @st.cache_resource
 def get_google_sheet():
@@ -189,11 +194,11 @@ def main():
 
         with col1:
             total_gastos = df_gastos['Monto'].sum()
-            st.metric("💵 Total Gastos", f"${total_gastos:,.2f}")
+            st.metric("💵 Total Gastos", format_pesos(total_gastos))
 
         with col2:
             promedio = df_gastos['Monto'].mean()
-            st.metric("📊 Promedio", f"${promedio:,.2f}")
+            st.metric("📊 Promedio", format_pesos(promedio))
 
         with col3:
             num_transacciones = len(df_gastos)
@@ -242,15 +247,18 @@ def main():
             if len(metodos_filtro) > 0:
                 df_filtrado = df_filtrado[df_filtrado['Método de Pago'].isin(metodos_filtro)]
 
-            # Mostrar tabla
+            # Mostrar tabla con formato argentino en Monto
+            df_display_table = df_filtrado.sort_values('Fecha', ascending=False).copy()
+            df_display_table['Monto'] = df_display_table['Monto'].apply(lambda x: format_pesos(x))
+
             st.dataframe(
-                df_filtrado.sort_values('Fecha', ascending=False),
+                df_display_table,
                 use_container_width=True,
                 hide_index=True
             )
 
             # Resumen del filtro
-            st.info(f"📊 Mostrando {len(df_filtrado)} de {len(df_gastos)} transacciones | Total: ${df_filtrado['Monto'].sum():,.2f}")
+            st.info(f"📊 Mostrando {len(df_filtrado)} de {len(df_gastos)} transacciones | Total: {format_pesos(df_filtrado['Monto'].sum())}")
 
             # Sección para eliminar gastos
             st.markdown("---")
@@ -262,11 +270,12 @@ def main():
                     # Crear opciones de selección con formato legible
                     df_display = df_gastos.copy()
                     df_display['Fecha_str'] = df_display['Fecha'].dt.strftime('%d/%m/%Y')
+                    df_display['Monto_str'] = df_display['Monto'].apply(lambda x: format_pesos(x))
                     df_display['display'] = (
                         df_display['Fecha_str'] + ' - ' +
                         df_display['Categoría'] + ' - ' +
-                        df_display['Descripción'] + ' - $' +
-                        df_display['Monto'].astype(str)
+                        df_display['Descripción'] + ' - ' +
+                        df_display['Monto_str']
                     )
 
                     opciones = df_display['display'].tolist()
