@@ -214,17 +214,22 @@ def main():
             # Filtros
             col_filtro1, col_filtro2 = st.columns(2)
 
+            # Opciones predefinidas (las mismas del formulario)
+            todas_categorias = ["Alimentos", "Transporte", "Salud", "Educación",
+                               "Entretenimiento", "Servicios", "Ropa", "Casa"]
+            todos_metodos = ["BBVA", "Macro", "Naranja", "Santander", "Transferencia"]
+
             with col_filtro1:
                 categorias_filtro = st.multiselect(
                     "Filtrar por categoría",
-                    options=df_gastos['Categoría'].unique(),
+                    options=todas_categorias,
                     default=[]
                 )
 
             with col_filtro2:
                 metodos_filtro = st.multiselect(
                     "Filtrar por método de pago",
-                    options=df_gastos['Método de Pago'].unique(),
+                    options=todos_metodos,
                     default=[]
                 )
 
