@@ -321,13 +321,25 @@ def main():
                 st.plotly_chart(fig1, use_container_width=True)
 
             with col_graph2:
-                # Gráfico de distribución por método de pago
+                # Gráfico de distribución por método de pago con colores personalizados
                 gastos_metodo = df_gastos.groupby('Método de Pago')['Monto'].sum()
+
+                # Definir colores para cada método de pago
+                color_map = {
+                    'Santander': '#E30613',  # Rojo
+                    'BBVA': '#004481',       # Azul
+                    'Naranja': '#FF6900',    # Naranja
+                    'Macro': '#003366',      # Azul oscuro
+                    'Transferencia': '#00BFFF'  # Celeste
+                }
+
                 fig2 = px.pie(
                     values=gastos_metodo.values,
                     names=gastos_metodo.index,
                     title="Distribución por Método de Pago",
-                    hole=0.4
+                    hole=0.4,
+                    color=gastos_metodo.index,
+                    color_discrete_map=color_map
                 )
                 st.plotly_chart(fig2, use_container_width=True)
 
