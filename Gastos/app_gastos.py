@@ -7,6 +7,7 @@ import gspread
 from google.oauth2 import service_account
 from io import BytesIO
 import openpyxl
+import time
 
 # Configuración de la página
 st.set_page_config(
@@ -139,7 +140,11 @@ def main():
     with st.sidebar:
         st.header("➕ Agregar Nuevo Gasto")
 
-        with st.form("form_gasto"):
+        # Inicializar session_state para limpiar formulario
+        if 'form_submitted' not in st.session_state:
+            st.session_state.form_submitted = False
+
+        with st.form("form_gasto", clear_on_submit=True):
             fecha = st.date_input(
                 "Fecha",
                 value=date.today(),
@@ -175,7 +180,9 @@ def main():
                         if save_expense_to_sheets(sheet, fecha, categoria, descripcion, monto, metodo_pago):
                             st.success("✅ Gasto guardado exitosamente!")
                             st.balloons()
+                            st.session_state.form_submitted = True
                             # Recargar datos
+                            time.sleep(0.5)  # Pequeña pausa para que el usuario vea el mensaje de éxito
                             st.rerun()
                         else:
                             st.error("❌ Error al guardar el gasto")
