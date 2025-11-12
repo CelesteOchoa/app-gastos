@@ -153,8 +153,9 @@ def main():
 
             categoria = st.selectbox(
                 "Categoría",
-                ["Alimentos", "Transporte", "Salud", "Educación",
-                 "Entretenimiento", "Servicios", "Ropa", "Casa"]
+                ["", "Alimentos", "Transporte", "Salud", "Educación",
+                 "Entretenimiento", "Servicios", "Ropa", "Casa"],
+                format_func=lambda x: "Seleccionar categoría..." if x == "" else x
             )
 
             descripcion = st.text_input("Descripción", placeholder="Ej: Supermercado")
@@ -168,14 +169,15 @@ def main():
 
             metodo_pago = st.selectbox(
                 "Método de Pago",
-                ["BBVA", "Macro", "Naranja",
-                 "Santander", "Transferencia"]
+                ["", "BBVA", "Macro", "Naranja",
+                 "Santander", "Transferencia"],
+                format_func=lambda x: "Seleccionar método..." if x == "" else x
             )
 
             submitted = st.form_submit_button("💾 Guardar Gasto", use_container_width=True)
 
             if submitted:
-                if descripcion and monto > 0:
+                if descripcion and monto > 0 and categoria and metodo_pago:
                     with st.spinner("Guardando gasto..."):
                         if save_expense_to_sheets(sheet, fecha, categoria, descripcion, monto, metodo_pago):
                             st.success("✅ Gasto guardado exitosamente!")
