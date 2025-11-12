@@ -7,6 +7,7 @@ import gspread
 from google.oauth2 import service_account
 from io import BytesIO
 import openpyxl
+import time
 
 # Configuración de la página
 st.set_page_config(
@@ -32,6 +33,11 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Función para formatear montos en formato argentino
+def format_pesos(monto):
+    """Formatea un monto en pesos argentinos: 10.000,30"""
+    return f"${monto:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # Función para conectar con Google Sheets
 @st.cache_resource
@@ -134,7 +140,11 @@ def main():
     with st.sidebar:
         st.header("➕ Agregar Nuevo Gasto")
 
-        with st.form("form_gasto"):
+        # Inicializar session_state para limpiar formulario
+        if 'form_submitted' not in st.session_state:
+            st.session_state.form_submitted = False
+
+        with st.form("form_gasto", clear_on_submit=True):
             fecha = st.date_input(
                 "Fecha",
                 value=date.today(),
@@ -143,8 +153,9 @@ def main():
 
             categoria = st.selectbox(
                 "Categoría",
-                ["Alimentos", "Transporte", "Salud", "Educación",
-                 "Entretenimiento", "Servicios", "Ropa", "Casa"]
+                ["", "Alimentos", "Transporte", "Salud", "Educación",
+                 "Entretenimiento", "Servicios", "Ropa", "Casa"],
+                format_func=lambda x: "Seleccionar categoría..." if x == "" else x
             )
 
             descripcion = st.text_input("Descripción", placeholder="Ej: Supermercado")
@@ -158,19 +169,22 @@ def main():
 
             metodo_pago = st.selectbox(
                 "Método de Pago",
-                ["BBVA", "Macro", "Naranja",
-                 "Santander", "Transferencia"]
+                ["", "BBVA", "Macro", "Naranja",
+                 "Santander", "Transferencia"],
+                format_func=lambda x: "Seleccionar método..." if x == "" else x
             )
 
             submitted = st.form_submit_button("💾 Guardar Gasto", use_container_width=True)
 
             if submitted:
-                if descripcion and monto > 0:
+                if descripcion and monto > 0 and categoria and metodo_pago:
                     with st.spinner("Guardando gasto..."):
                         if save_expense_to_sheets(sheet, fecha, categoria, descripcion, monto, metodo_pago):
                             st.success("✅ Gasto guardado exitosamente!")
                             st.balloons()
+                            st.session_state.form_submitted = True
                             # Recargar datos
+                            time.sleep(0.5)  # Pequeña pausa para que el usuario vea el mensaje de éxito
                             st.rerun()
                         else:
                             st.error("❌ Error al guardar el gasto")
@@ -178,7 +192,31 @@ def main():
                     st.warning("⚠️ Por favor completa todos los campos")
 
         st.markdown("---")
-        st.info("💡 **Tip:** Todos los gastos se guardan automáticamente en Google Sheets")
+
+        # Botón para abrir Google Sheets
+        sheet_id = st.secrets["google_sheets"]["spreadsheet_id"]
+        sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}"
+
+        st.markdown(
+            f'<a href="{sheet_url}" target="_blank" style="text-decoration: none;">'
+            f'<button style="'
+            f'background-color: #4CAF50; '
+            f'border: none; '
+            f'color: white; '
+            f'padding: 10px 20px; '
+            f'text-align: center; '
+            f'text-decoration: none; '
+            f'display: inline-block; '
+            f'font-size: 14px; '
+            f'margin: 4px 2px; '
+            f'cursor: pointer; '
+            f'border-radius: 5px; '
+            f'width: 100%;'
+            f'">'
+            f'📊 Abrir Google Sheets'
+            f'</button></a>',
+            unsafe_allow_html=True
+        )
 
     # Contenido principal
     if len(df_gastos) == 0 or 'Monto' not in df_gastos.columns:
@@ -189,11 +227,11 @@ def main():
 
         with col1:
             total_gastos = df_gastos['Monto'].sum()
-            st.metric("💵 Total Gastos", f"${total_gastos:,.2f}")
+            st.metric("💵 Total Gastos", format_pesos(total_gastos))
 
         with col2:
             promedio = df_gastos['Monto'].mean()
-            st.metric("📊 Promedio", f"${promedio:,.2f}")
+            st.metric("📊 Promedio", format_pesos(promedio))
 
         with col3:
             num_transacciones = len(df_gastos)
@@ -214,35 +252,46 @@ def main():
             # Filtros
             col_filtro1, col_filtro2 = st.columns(2)
 
+            # Opciones predefinidas (las mismas del formulario)
+            todas_categorias = ["Alimentos", "Transporte", "Salud", "Educación",
+                               "Entretenimiento", "Servicios", "Ropa", "Casa"]
+            todos_metodos = ["BBVA", "Macro", "Naranja", "Santander", "Transferencia"]
+
             with col_filtro1:
                 categorias_filtro = st.multiselect(
                     "Filtrar por categoría",
-                    options=df_gastos['Categoría'].unique(),
-                    default=df_gastos['Categoría'].unique()
+                    options=todas_categorias,
+                    default=[]
                 )
 
             with col_filtro2:
                 metodos_filtro = st.multiselect(
                     "Filtrar por método de pago",
-                    options=df_gastos['Método de Pago'].unique(),
-                    default=df_gastos['Método de Pago'].unique()
+                    options=todos_metodos,
+                    default=[]
                 )
 
-            # Aplicar filtros
-            df_filtrado = df_gastos[
-                (df_gastos['Categoría'].isin(categorias_filtro)) &
-                (df_gastos['Método de Pago'].isin(metodos_filtro))
-            ]
+            # Aplicar filtros (si no hay filtros, mostrar todo)
+            df_filtrado = df_gastos.copy()
 
-            # Mostrar tabla
+            if len(categorias_filtro) > 0:
+                df_filtrado = df_filtrado[df_filtrado['Categoría'].isin(categorias_filtro)]
+
+            if len(metodos_filtro) > 0:
+                df_filtrado = df_filtrado[df_filtrado['Método de Pago'].isin(metodos_filtro)]
+
+            # Mostrar tabla con formato argentino en Monto
+            df_display_table = df_filtrado.sort_values('Fecha', ascending=False).copy()
+            df_display_table['Monto'] = df_display_table['Monto'].apply(lambda x: format_pesos(x))
+
             st.dataframe(
-                df_filtrado.sort_values('Fecha', ascending=False),
+                df_display_table,
                 use_container_width=True,
                 hide_index=True
             )
 
             # Resumen del filtro
-            st.info(f"📊 Mostrando {len(df_filtrado)} de {len(df_gastos)} transacciones | Total: ${df_filtrado['Monto'].sum():,.2f}")
+            st.info(f"📊 Mostrando {len(df_filtrado)} de {len(df_gastos)} transacciones | Total: {format_pesos(df_filtrado['Monto'].sum())}")
 
             # Sección para eliminar gastos
             st.markdown("---")
@@ -254,11 +303,12 @@ def main():
                     # Crear opciones de selección con formato legible
                     df_display = df_gastos.copy()
                     df_display['Fecha_str'] = df_display['Fecha'].dt.strftime('%d/%m/%Y')
+                    df_display['Monto_str'] = df_display['Monto'].apply(lambda x: format_pesos(x))
                     df_display['display'] = (
                         df_display['Fecha_str'] + ' - ' +
                         df_display['Categoría'] + ' - ' +
-                        df_display['Descripción'] + ' - $' +
-                        df_display['Monto'].astype(str)
+                        df_display['Descripción'] + ' - ' +
+                        df_display['Monto_str']
                     )
 
                     opciones = df_display['display'].tolist()
@@ -304,13 +354,25 @@ def main():
                 st.plotly_chart(fig1, use_container_width=True)
 
             with col_graph2:
-                # Gráfico de distribución por método de pago
+                # Gráfico de distribución por método de pago con colores personalizados
                 gastos_metodo = df_gastos.groupby('Método de Pago')['Monto'].sum()
+
+                # Definir colores para cada método de pago
+                color_map = {
+                    'Santander': '#E30613',  # Rojo
+                    'BBVA': '#004481',       # Azul
+                    'Naranja': '#FF6900',    # Naranja
+                    'Macro': '#003366',      # Azul oscuro
+                    'Transferencia': '#00BFFF'  # Celeste
+                }
+
                 fig2 = px.pie(
                     values=gastos_metodo.values,
                     names=gastos_metodo.index,
                     title="Distribución por Método de Pago",
-                    hole=0.4
+                    hole=0.4,
+                    color=gastos_metodo.index,
+                    color_discrete_map=color_map
                 )
                 st.plotly_chart(fig2, use_container_width=True)
 
