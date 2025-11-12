@@ -192,7 +192,31 @@ def main():
                     st.warning("⚠️ Por favor completa todos los campos")
 
         st.markdown("---")
-        st.info("💡 **Tip:** Todos los gastos se guardan automáticamente en Google Sheets")
+
+        # Botón para abrir Google Sheets
+        sheet_id = st.secrets["google_sheets"]["spreadsheet_id"]
+        sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}"
+
+        st.markdown(
+            f'<a href="{sheet_url}" target="_blank" style="text-decoration: none;">'
+            f'<button style="'
+            f'background-color: #4CAF50; '
+            f'border: none; '
+            f'color: white; '
+            f'padding: 10px 20px; '
+            f'text-align: center; '
+            f'text-decoration: none; '
+            f'display: inline-block; '
+            f'font-size: 14px; '
+            f'margin: 4px 2px; '
+            f'cursor: pointer; '
+            f'border-radius: 5px; '
+            f'width: 100%;'
+            f'">'
+            f'📊 Abrir Google Sheets'
+            f'</button></a>',
+            unsafe_allow_html=True
+        )
 
     # Contenido principal
     if len(df_gastos) == 0 or 'Monto' not in df_gastos.columns:
